@@ -96,16 +96,7 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
-  <ItemGroup>
-    <Resource Include="CODEBAK.txt" />
-  </ItemGroup>
-  <ItemGroup>
-    <Resource Include="repo-assets\mountain-lake.jpg" />
-    <Resource Include="repo-assets\open-desert-test.jpg" />
-  </ItemGroup>
-  <ItemGroup>
-    <Resource Include="repo-assets\reticle.png" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
