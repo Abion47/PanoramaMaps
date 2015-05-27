@@ -4,7 +4,5 @@
         Title="MainWindow" Height="350" Width="525" Loaded="Window_Loaded" WindowStartupLocation="CenterScreen" SizeChanged="Window_SizeChanged">
     <Canvas x:Name="canvas" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="White">
         <Image x:Name="reticle" Source="pack://application,,,/repo-assets/reticle.png" Panel.ZIndex="10000"/>
-
-        
     </Canvas>
 </Window>
