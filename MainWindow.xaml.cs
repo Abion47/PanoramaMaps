@@ -28,9 +28,16 @@ namespace PanoramaMaps
         private CroppedBitmap cbmp1;
         private CroppedBitmap cbmp2;
 
+        // Static UI Info
+        double reticleWidth2;
+        double reticleHeight2;
+        double arrowWidth2;
+        double arrowHeight2;
+
         // Viewport Info
         Point focus;
         Point velocity;
+        double velArrow = 200;
         double velStep = 1.8;
         double width2;
         double height2;
@@ -54,7 +61,31 @@ namespace PanoramaMaps
 
             r = new Random();
 
-            src = new BitmapImage(new Uri(System.IO.Path.Combine(Environment.CurrentDirectory, "Assets", "sony-center.jpg")));
+            using (System.Drawing.Bitmap temp = (System.Drawing.Bitmap)System.Drawing.Image.FromFile("Assets/mountain-lake-96dpi.jpg"))
+            {
+                temp.SetResolution(96, 96);
+
+                using (System.IO.MemoryStream stream = new System.IO.MemoryStream())
+                {
+                    temp.Save(stream, System.Drawing.Imaging.ImageFormat.Bmp);
+                    stream.Position = 0;
+                    src = new BitmapImage();
+                    src.BeginInit();
+                    src.StreamSource = stream;
+                    src.CacheOption = BitmapCacheOption.OnLoad;
+                    src.EndInit();
+                }
+            }
+
+            Console.WriteLine(src.DpiX + " : " + src.DpiY);
+
+            image1.Source = src;
+            image2.Source = src;
+
+            reticleWidth2 = reticle.ActualWidth / 2;
+            reticleHeight2 = reticle.ActualHeight / 2;
+            arrowWidth2 = leftArrow.ActualWidth / 2;
+            arrowHeight2 = leftArrow.ActualHeight / 2;
 
             focus = new Point();
             velocity = new Point();
@@ -67,45 +98,68 @@ namespace PanoramaMaps
             CompositionTarget.Rendering += Render;
         }
 
-        
+        double[] deltas;
+        int idx;
+        protected void Render(object sender, EventArgs e)
+        {
+            oldTime = newTime;
+            newTime = stopwatch.ElapsedMilliseconds;
+            delta = (newTime - oldTime) / 1000;
+
+            SetFocus(focus.X + (velocity.X * delta), focus.Y + (velocity.Y * delta));
+            SetCurrentView();
+
+            deltas[(idx = (idx + 1) % 4)] = delta;
+
+            this.Title = (1 / Average(deltas)).ToString("F4");
+        }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             width2 = canvas.RenderSize.Width / 2;
             height2 = canvas.RenderSize.Height / 2;
+            CheckImageFit();
             SetFocus(src.PixelWidth / 2, src.PixelHeight / 2);
-
-            DrawingGroup drawings = new DrawingGroup();
-
-            img1 = new ImageDrawing();
-            drawings.Children.Add(img1);
-            img2 = new ImageDrawing();
-            drawings.Children.Add(img2);
-
-            DrawingImage drawingImage = new DrawingImage(drawings);
-            imageElem.Source = drawingImage;
         }
 
         private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (img1 != null)
-            {
-                width2 = canvas.RenderSize.Width / 2;
-                height2 = canvas.RenderSize.Height / 2;
+            width2 = canvas.RenderSize.Width / 2;
+            height2 = canvas.RenderSize.Height / 2;
 
-                SetFocus(focus.X, focus.Y);
-                SetCurrentView();
-            }
+            reticle.SetValue(Canvas.LeftProperty, width2 - reticleWidth2);
+            reticle.SetValue(Canvas.TopProperty, height2 - reticleHeight2);
+
+            leftArrow.SetValue(Canvas.LeftProperty, 12.0);
+            leftArrow.SetValue(Canvas.TopProperty, height2 - arrowHeight2);
+
+            rightArrow.SetValue(Canvas.LeftProperty, canvas.RenderSize.Width - rightArrow.RenderSize.Width - 12.0);
+            rightArrow.SetValue(Canvas.TopProperty, height2 - arrowHeight2);
+
+            CheckImageFit();
         }
 
         private void imageElem_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                lmb = true;
+                mouseDownPoint = e.GetPosition(canvas);
+            }
+
+            if (e.ChangedButton == MouseButton.Right) rmb = true;
         }
 
         private void imageElem_MouseUp(object sender, MouseButtonEventArgs e)
         {
-            
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                lmb = false;
+                velocity.X = 0;
+                velocity.Y = 0;
+            }
+
+            if (e.ChangedButton == MouseButton.Right) rmb = false;
         }
 
         private void imageElem_MouseMove(object sender, MouseEventArgs e)
@@ -122,6 +176,30 @@ namespace PanoramaMaps
         }
 
         #region Utility Setters
+        private void CheckImageFit()
+        {
+            if (canvas.RenderSize.Height > image1.ActualHeight)
+            {
+                Console.WriteLine(image1.RenderSize.Height);
+
+                scale1.CenterX = focus.X;
+                scale1.CenterY = focus.Y;
+                scale2.CenterX = focus.X;
+                scale2.CenterY = focus.Y;
+
+                double newScale = canvas.RenderSize.Height / image1.RenderSize.Height;
+
+                scale1.ScaleX = newScale;
+                scale1.ScaleY = newScale;
+                scale2.ScaleX = newScale;
+                scale2.ScaleY = newScale;
+
+                Console.WriteLine(image1.RenderSize.Height);
+
+                SetFocus(focus.X * scale1.ScaleX, focus.Y * scale1.ScaleY);
+            }
+        }
+
         private void SetFocus(double x, double y)
         {
             focus.X = x;
@@ -131,12 +209,12 @@ namespace PanoramaMaps
             {
                 focus.X += src.PixelWidth;
             }
-            
-            if (focus.Y - height2 < 0) 
+
+            if (focus.Y - height2 < 0)
             {
                 focus.Y = height2;
             }
-            
+
             if (focus.X >= src.PixelWidth)
             {
                 focus.X -= src.PixelWidth;
@@ -150,71 +228,29 @@ namespace PanoramaMaps
 
         private void SetCurrentView()
         {
+            image1.SetValue(Canvas.LeftProperty, -(focus.X - width2));
+            image1.SetValue(Canvas.TopProperty, -(focus.Y - height2));
+
             if (focus.X - width2 < 0)
             {
-                double aWidth = focus.X + width2;
-                double bWidth = canvas.RenderSize.Width - aWidth;
-                double ax = 0;
-                double bx = src.PixelWidth - bWidth;
-                double y = focus.Y - height2;
+                if (image2.Visibility == System.Windows.Visibility.Hidden)
+                    image2.Visibility = System.Windows.Visibility.Visible;
 
-                cbmp1 = new CroppedBitmap(src, new Int32Rect(
-                    (int)ax,
-                    (int)y,
-                    (int)aWidth, 
-                    (int)canvas.RenderSize.Height));
-
-                img1.Rect = new Rect(bWidth, 0, aWidth, canvas.RenderSize.Height);
-                img1.ImageSource = cbmp1;
-
-                cbmp2 = new CroppedBitmap(src, new Int32Rect(
-                    (int)bx,
-                    (int)y,
-                    Math.Max((int)bWidth, 1),
-                    (int)canvas.RenderSize.Height));
-
-                img2.Rect = new Rect(0, 0, bWidth, canvas.RenderSize.Height);
-                img2.ImageSource = cbmp2;
+                image2.SetValue(Canvas.LeftProperty, -(focus.X - width2) - image1.ActualWidth);
+                image2.SetValue(Canvas.TopProperty, -(focus.Y - height2));
             }
             else if (focus.X + width2 >= src.PixelWidth)
             {
-                double diff = src.PixelWidth - focus.X;
-                double aWidth = width2 + diff;
-                double bWidth = canvas.RenderSize.Width - aWidth;
-                double ax = focus.X - width2;
-                double bx = 0;
-                double y = focus.Y - height2;
+                if (image2.Visibility == System.Windows.Visibility.Hidden)
+                    image2.Visibility = System.Windows.Visibility.Visible;
 
-                cbmp1 = new CroppedBitmap(src, new Int32Rect(
-                    (int)ax,
-                    (int)y,
-                    (int)aWidth,
-                    (int)canvas.RenderSize.Height));
-
-                img1.Rect = new Rect(0, 0, aWidth, canvas.RenderSize.Height);
-                img1.ImageSource = cbmp1;
-
-                cbmp2 = new CroppedBitmap(src, new Int32Rect(
-                    (int)bx,
-                    (int)y,
-                    Math.Max((int)bWidth, 1),
-                    (int)canvas.RenderSize.Height));
-
-                img2.Rect = new Rect(aWidth, 0, bWidth, canvas.RenderSize.Height);
-                img2.ImageSource = cbmp2;
+                image2.SetValue(Canvas.LeftProperty, -(focus.X - width2) + image1.ActualWidth);
+                image2.SetValue(Canvas.TopProperty, -(focus.Y - height2));
             }
             else
             {
-                cbmp1 = new CroppedBitmap(src, new Int32Rect(
-                    (int)(focus.X - width2), 
-                    (int)(focus.Y - height2), 
-                    (int)canvas.RenderSize.Width, 
-                    (int)canvas.RenderSize.Height));
-
-                img1.Rect = new Rect(0, 0, canvas.RenderSize.Width, canvas.RenderSize.Height);
-                img1.ImageSource = cbmp1;
-
-                img2.Rect = new Rect(0, 0, 0, 0);
+                if (image2.Visibility != System.Windows.Visibility.Hidden)
+                    image2.Visibility = System.Windows.Visibility.Hidden;
             }
         }
         #endregion
@@ -236,51 +272,36 @@ namespace PanoramaMaps
         }
         #endregion
 
-        /*
-        Stopwatch stopwatch = new Stopwatch();
-        long frameCounter;
-        double lastSeconds;
-        double colorStep = 30000.0;
-        double currentPhase;
-        protected void Render(object sender, EventArgs e)
+        private void leftArrow_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (frameCounter++ == 0)
+            if (e.ChangedButton == MouseButton.Left)
             {
-                stopwatch.Start();
+                velocity.X = -velArrow;
             }
-
-            double frameRate = frameCounter / stopwatch.Elapsed.TotalSeconds;
-            if (frameRate > 0)
-            {
-                this.Title = frameRate.ToString("F2");
-                lastSeconds = stopwatch.Elapsed.TotalSeconds;
-            }
-
-            double delta = stopwatch.Elapsed.TotalSeconds - lastSeconds;
-            currentPhase += colorStep * delta;
-            currentPhase = currentPhase > 3 ? currentPhase - 3 : currentPhase;
-
-            byte red = (byte)((
-                currentPhase <= 1 ? Lerp(0, 1, currentPhase) : 
-                currentPhase <= 2 ? Lerp(1, 0, currentPhase - 1) : 0) * 255);
-            byte green = (byte)((
-                currentPhase >= 1 ? (
-                    currentPhase <= 2 ? Lerp(0, 1, currentPhase - 1) : 
-                    currentPhase <= 3 ? Lerp(1, 0, currentPhase - 2) : 0) : 0)  * 255);
-            byte blue = (byte)((
-                currentPhase <= 1 ? Lerp(1, 0, currentPhase) : 
-                currentPhase >= 2 ? Lerp(0, 1, currentPhase - 2) : 0) * 255);
-
-            Console.WriteLine(currentPhase);
-
-            //canvas.Background = new SolidColorBrush(Color.FromRgb(red, green, blue));
-            lastSeconds = stopwatch.Elapsed.TotalSeconds;
         }
 
-        public static double Lerp(double a, double b, double t)
+        private void leftArrow_MouseUp(object sender, MouseButtonEventArgs e)
         {
-            return (1 - t) * a + t * b;
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                velocity.X = 0;
+            }
         }
-         * */
+
+        private void rightArrow_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                velocity.X = velArrow;
+            }
+        }
+
+        private void rightArrow_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                velocity.X = 0;
+            }
+        }
     }
 }
