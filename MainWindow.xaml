@@ -3,6 +3,23 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="MainWindow" Height="350" Width="525" Loaded="Window_Loaded" WindowStartupLocation="CenterScreen" SizeChanged="Window_SizeChanged">
     <Canvas x:Name="canvas" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="White">
-        <Image x:Name="reticle" Source="pack://application,,,/repo-assets/reticle.png" Panel.ZIndex="10000"/>
+        <Image x:Name="reticle" Source="pack://application:,,,/repo-assets/reticle.png" Panel.ZIndex="10000" />
+        <Image x:Name="leftArrow" Source="pack://application:,,,/repo-assets/arrow.png" Panel.ZIndex="10000" MouseDown="leftArrow_MouseDown" MouseUp="leftArrow_MouseUp" />
+        <Image x:Name="rightArrow" Source="pack://application:,,,/repo-assets/arrow.png" Panel.ZIndex="10000" MouseDown="rightArrow_MouseDown" MouseUp="rightArrow_MouseUp">
+            <Image.LayoutTransform>
+                <RotateTransform Angle="180" />
+            </Image.LayoutTransform>
+        </Image>
+        
+        <Image x:Name="image1" MouseDown="imageElem_MouseDown" MouseUp="imageElem_MouseUp" MouseMove="imageElem_MouseMove">
+            <Image.RenderTransform>
+                <ScaleTransform x:Name="scale1" />
+            </Image.RenderTransform>
+        </Image>
+        <Image x:Name="image2" MouseDown="imageElem_MouseDown" MouseUp="imageElem_MouseUp" MouseMove="imageElem_MouseMove">
+            <Image.RenderTransform>
+                <ScaleTransform x:Name="scale2" />
+            </Image.RenderTransform>
+        </Image>
     </Canvas>
 </Window>
